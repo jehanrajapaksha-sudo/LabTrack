@@ -46,14 +46,26 @@ app.use(errorHandler);
 
 async function ensureAdmin() {
   const existingAdmin = await User.findOne({ where: { role: 'admin' } });
+  const name = process.env.ADMIN_NAME || 'System Admin';
+  const email = (process.env.ADMIN_EMAIL || 'admin@labreport.local').toLowerCase().trim();
+  const password = process.env.ADMIN_PASSWORD || 'Admin123!';
+
+  if (existingAdmin && process.env.UPDATE_ADMIN === 'true') {
+    existingAdmin.name = name;
+    existingAdmin.email = email;
+    existingAdmin.password = await bcrypt.hash(password, 10);
+    await existingAdmin.save();
+    console.log(`Admin account updated: ${email}. Remove UPDATE_ADMIN from environment variables.`);
+    return;
+  }
+
   if (existingAdmin) {
     return;
   }
 
-  const email = (process.env.ADMIN_EMAIL || 'admin@labreport.local').toLowerCase().trim();
-  const hashed = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Admin123!', 10);
+  const hashed = await bcrypt.hash(password, 10);
   await User.create({
-    name: process.env.ADMIN_NAME || 'System Admin',
+    name,
     email,
     password: hashed,
     role: 'admin'
